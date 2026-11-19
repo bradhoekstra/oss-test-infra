@@ -286,10 +286,11 @@ periodics:
   # evidence store once EVAL_BASELINE_STORE below is armed), which is what
   # fills the admission window the #925 gate machinery reads.
   #
-  # Grades spec.mode next (EVAL_MODE_NEXT=1 below), the mode a new install
-  # gets and the one pull-kube-agents-smoke-test grades, so this job, its
-  # -main-b to -main-e shards and its three writers thirds record the next-mode window the
-  # presubmit is compared with (gke-labs/kube-agents#2007). Today mode is
+  # Runs the A2A stack and grades through the gateway's inject door, as
+  # pull-kube-agents-smoke-test does and with no flag
+  # (gke-labs/kube-agents#5755, 2026-11-18), so this job, its -main-b to
+  # -main-e shards and its three writers thirds record the next-mode window
+  # the presubmit is compared with (gke-labs/kube-agents#2007). Today mode is
   # retired (gke-labs/kube-agents#5752 and its stack), so no job proves a
   # rollback to it; the staging promotion pipeline proves the release path.
   cluster: build-kube-agents
@@ -428,18 +429,14 @@ periodics:
         # not recognise. This export is the whole difference between this job
         # and the presubmit's eval step.
         export EVAL_TIER="nightly"
-        # ─── spec.mode next ─────────────────────────────────────────────────
-        # hack/ci-deploy.sh flips the install to spec.mode next after the
-        # today-mode install has passed its own gates, and hack/ci-eval-pr.sh
-        # runs the matrix through the gateway's inject door, less
-        # hack/eval/inject-lane-exclusions.txt. The deploy admits the flag on
-        # this job, which has no PULL_NUMBER, only by name
-        # (EVAL_MODE_NEXT_JOB_NAMES in hack/ci-deploy.sh, which
-        # gke-labs/kube-agents#3783 extends: merge that first, or this job
-        # reds at the deploy's refusal). bench-gate reads the inject transport
-        # as the version key's next mode, so the lines this job appends file
-        # under next and never reach today's window.
-        export EVAL_MODE_NEXT="1"
+        # ─── The A2A stack and the inject door ──────────────────────────────
+        # hack/ci-deploy.sh installs the A2A stack and gates it, and
+        # hack/ci-eval-pr.sh runs the matrix through the gateway's inject
+        # door, less hack/eval/inject-lane-exclusions.txt. No flag chooses
+        # this path and no job-name allow-list admits it since
+        # gke-labs/kube-agents#5755 (2026-11-18). bench-gate reads the inject
+        # transport as the version key's next mode, the one mode a run
+        # records now.
         # ─── The agent model: the `nightly` pair of the eval-model Secret ─────────
         # The nightlies' pair, which every nightly and weekly periodic reads;
         # the gate's record is built from these runs, so `gate.name` must name
@@ -707,7 +704,7 @@ periodics:
   # their cases are disjoint, so no case is recorded twice a night. The
   # Boskos owner, log path and build identity all derive from JOB_NAME and
   # BUILD_ID, so nothing below needs to differ by hand. Like the other
-  # parts it grades spec.mode next (EVAL_MODE_NEXT=1 below).
+  # parts it runs the A2A stack and grades through the inject door.
   #
   # What the copied comments below say about the whole job:
   # The nightly catch-all (gke-labs/kube-agents#1021): runs the FULL eval
@@ -859,18 +856,14 @@ periodics:
         # not recognise. This export is the whole difference between this job
         # and the presubmit's eval step.
         export EVAL_TIER="nightly"
-        # ─── spec.mode next ─────────────────────────────────────────────────
-        # As ci-kube-agents-eval-nightly above: hack/ci-deploy.sh flips the
-        # install to spec.mode next after the today-mode install has passed
-        # its own gates, and hack/ci-eval-pr.sh runs this shard through the
-        # gateway's inject door, less hack/eval/inject-lane-exclusions.txt.
-        # The deploy admits the flag on this job, which has no PULL_NUMBER,
-        # only by name (EVAL_MODE_NEXT_JOB_NAMES in hack/ci-deploy.sh, which
-        # gke-labs/kube-agents#3934 extends: merge that first, or this job
-        # reds at the deploy's refusal). bench-gate reads the inject transport
-        # as the version key's next mode, so the lines this job appends file
-        # under next and never reach today's window.
-        export EVAL_MODE_NEXT="1"
+        # ─── The A2A stack and the inject door ──────────────────────────────
+        # As ci-kube-agents-eval-nightly above: hack/ci-deploy.sh installs the
+        # A2A stack and gates it, and hack/ci-eval-pr.sh runs this shard
+        # through the gateway's inject door, less
+        # hack/eval/inject-lane-exclusions.txt, with no flag since
+        # gke-labs/kube-agents#5755 (2026-11-18). bench-gate reads the inject
+        # transport as the version key's next mode, the one mode a run
+        # records now.
         # ─── The agent model: the `nightly` pair of the eval-model Secret ─────────
         # The nightlies' pair, which every nightly and weekly periodic reads;
         # the gate's record is built from these runs, so `gate.name` must name
@@ -1123,7 +1116,10 @@ periodics:
   # the nightlies' under logs/ci-kube-agents-certification-1/ for the page's
   # fetcher. The Boskos owner, log path and build identity all derive from
   # JOB_NAME and BUILD_ID. Like the nightlies it grades spec.mode next
-  # (EVAL_MODE_NEXT=1 below; hack/ci-deploy.sh admits this job by name).
+  # through the inject door; the EVAL_MODE_NEXT=1 export below stays because
+  # the RELEASE's scripts run, and a release cut before
+  # gke-labs/kube-agents#5755 still reads it (the export's comment says when
+  # it can go).
   #
   # What it grades: a RELEASE, not main's head. The script below resolves the
   # newest GA version tag (0.24.0, ...) to the commit whose published images
@@ -1270,15 +1266,17 @@ periodics:
         export EVAL_TIER="certification"
         export EVAL_CERTIFICATION_PART="1"
         # ─── spec.mode next ─────────────────────────────────────────────────
-        # As ci-kube-agents-eval-nightly above: hack/ci-deploy.sh flips the
-        # install to spec.mode next after the today-mode install has passed
-        # its own gates, and hack/ci-eval-pr.sh runs the slice through the
-        # gateway's inject door, less hack/eval/inject-lane-exclusions.txt.
-        # The deploy admits the flag on this job, which has no PULL_NUMBER,
-        # only by name (EVAL_MODE_NEXT_JOB_NAMES in hack/ci-deploy.sh, which
-        # the kube-agents pull request that adds the tier extends: merge that
-        # first, or this job reds at the deploy's refusal). bench-gate reads
-        # the inject transport as the version key's next mode.
+        # The release's own hack/ci-deploy.sh and hack/ci-eval-pr.sh run here
+        # (the detached checkout above), not main's. A release cut before
+        # gke-labs/kube-agents#5755 (a6ed47eaa, 2026-11-18; 0.33.0 is one)
+        # reads EVAL_MODE_NEXT=1 to install the A2A stack and run the slice
+        # through the gateway's inject door, and admits the flag on this job,
+        # which has no PULL_NUMBER, by name (EVAL_MODE_NEXT_JOB_NAMES in its
+        # hack/ci-deploy.sh); without it that release installs today mode. A
+        # release at or after #5755 takes the inject path with no flag and
+        # ignores this export. Keep it until no GA release this job may
+        # resolve predates #5755. bench-gate reads the inject transport as
+        # the version key's next mode.
         export EVAL_MODE_NEXT="1"
         # ─── The agent model: the `nightly` pair of the eval-model Secret ─────────
         # The nightlies' pair, which every nightly and weekly periodic reads;
@@ -1554,14 +1552,7 @@ periodics:
   # logs land where the other parts' do (the dashboard joins the builds into
   # one night). The shards' cases are disjoint, so no case is recorded twice
   # a night. The Boskos owner, log path and build identity all derive from
-  # JOB_NAME and BUILD_ID, so nothing below needs to differ by hand. The
-  # deploy admits EVAL_MODE_NEXT=1 here by job name (EVAL_MODE_NEXT_JOB_NAMES
-  # in hack/ci-deploy.sh), so until the gke-labs/kube-agents change that adds
-  # this name merges this job reds at the deploy's refusal, a minute after
-  # its lease. That is the expected state for the night between the two
-  # merges: this change lands first, because the kube-agents change gives
-  # main-a and main-b their new, narrower meaning the night it lands, and the
-  # cases of main-c, main-d and main-e would run nowhere until these jobs exist.
+  # JOB_NAME and BUILD_ID, so nothing below needs to differ by hand.
   cluster: build-kube-agents
   # 00:00 UTC (8 PM EDT / 7 PM EST; 5 PM / 4 PM Pacific): after the working
   # day's presubmit herd in the team's Eastern time zone, so the nightly's
@@ -1698,19 +1689,14 @@ periodics:
         # not recognise. This export is the whole difference between this job
         # and the presubmit's eval step.
         export EVAL_TIER="nightly"
-        # ─── spec.mode next ─────────────────────────────────────────────────
-        # As ci-kube-agents-eval-nightly above: hack/ci-deploy.sh flips the
-        # install to spec.mode next after the today-mode install has passed
-        # its own gates, and hack/ci-eval-pr.sh runs this shard through the
-        # gateway's inject door, less hack/eval/inject-lane-exclusions.txt.
-        # The deploy admits the flag on this job, which has no PULL_NUMBER,
-        # only by name (EVAL_MODE_NEXT_JOB_NAMES in hack/ci-deploy.sh, which
-        # the gke-labs/kube-agents change that teaches hack/ci-eval-pr.sh the
-        # main-c part also extends; until it merges this job reds at the
-        # deploy's refusal, as the header says). bench-gate reads the inject transport
-        # as the version key's next mode, so the lines this job appends file
-        # under next and never reach today's window.
-        export EVAL_MODE_NEXT="1"
+        # ─── The A2A stack and the inject door ──────────────────────────────
+        # As ci-kube-agents-eval-nightly above: hack/ci-deploy.sh installs the
+        # A2A stack and gates it, and hack/ci-eval-pr.sh runs this shard
+        # through the gateway's inject door, less
+        # hack/eval/inject-lane-exclusions.txt, with no flag since
+        # gke-labs/kube-agents#5755 (2026-11-18). bench-gate reads the inject
+        # transport as the version key's next mode, the one mode a run
+        # records now.
         # ─── The agent model: the `nightly` pair of the eval-model Secret ─────────
         # The nightlies' pair, which every nightly and weekly periodic reads;
         # the gate's record is built from these runs, so `gate.name` must name
@@ -1971,14 +1957,7 @@ periodics:
   # logs land where the other parts' do (the dashboard joins the builds into
   # one night). The shards' cases are disjoint, so no case is recorded twice
   # a night. The Boskos owner, log path and build identity all derive from
-  # JOB_NAME and BUILD_ID, so nothing below needs to differ by hand. The
-  # deploy admits EVAL_MODE_NEXT=1 here by job name (EVAL_MODE_NEXT_JOB_NAMES
-  # in hack/ci-deploy.sh), so until the gke-labs/kube-agents change that adds
-  # this name merges this job reds at the deploy's refusal, a minute after
-  # its lease. That is the expected state for the night between the two
-  # merges: this change lands first, because the kube-agents change gives
-  # main-a and main-b their new, narrower meaning the night it lands, and the
-  # cases of main-c, main-d and main-e would run nowhere until these jobs exist.
+  # JOB_NAME and BUILD_ID, so nothing below needs to differ by hand.
   cluster: build-kube-agents
   # 00:00 UTC (8 PM EDT / 7 PM EST; 5 PM / 4 PM Pacific): after the working
   # day's presubmit herd in the team's Eastern time zone, so the nightly's
@@ -2115,19 +2094,14 @@ periodics:
         # not recognise. This export is the whole difference between this job
         # and the presubmit's eval step.
         export EVAL_TIER="nightly"
-        # ─── spec.mode next ─────────────────────────────────────────────────
-        # As ci-kube-agents-eval-nightly above: hack/ci-deploy.sh flips the
-        # install to spec.mode next after the today-mode install has passed
-        # its own gates, and hack/ci-eval-pr.sh runs this shard through the
-        # gateway's inject door, less hack/eval/inject-lane-exclusions.txt.
-        # The deploy admits the flag on this job, which has no PULL_NUMBER,
-        # only by name (EVAL_MODE_NEXT_JOB_NAMES in hack/ci-deploy.sh, which
-        # the gke-labs/kube-agents change that teaches hack/ci-eval-pr.sh the
-        # main-d part also extends; until it merges this job reds at the
-        # deploy's refusal, as the header says). bench-gate reads the inject transport
-        # as the version key's next mode, so the lines this job appends file
-        # under next and never reach today's window.
-        export EVAL_MODE_NEXT="1"
+        # ─── The A2A stack and the inject door ──────────────────────────────
+        # As ci-kube-agents-eval-nightly above: hack/ci-deploy.sh installs the
+        # A2A stack and gates it, and hack/ci-eval-pr.sh runs this shard
+        # through the gateway's inject door, less
+        # hack/eval/inject-lane-exclusions.txt, with no flag since
+        # gke-labs/kube-agents#5755 (2026-11-18). bench-gate reads the inject
+        # transport as the version key's next mode, the one mode a run
+        # records now.
         # ─── The agent model: the `nightly` pair of the eval-model Secret ─────────
         # The nightlies' pair, which every nightly and weekly periodic reads;
         # the gate's record is built from these runs, so `gate.name` must name
@@ -2388,14 +2362,7 @@ periodics:
   # logs land where the other parts' do (the dashboard joins the builds into
   # one night). The shards' cases are disjoint, so no case is recorded twice
   # a night. The Boskos owner, log path and build identity all derive from
-  # JOB_NAME and BUILD_ID, so nothing below needs to differ by hand. The
-  # deploy admits EVAL_MODE_NEXT=1 here by job name (EVAL_MODE_NEXT_JOB_NAMES
-  # in hack/ci-deploy.sh), so until the gke-labs/kube-agents change that adds
-  # this name merges this job reds at the deploy's refusal, a minute after
-  # its lease. That is the expected state for the night between the two
-  # merges: this change lands first, because the kube-agents change gives
-  # main-a and main-b their new, narrower meaning the night it lands, and the
-  # cases of main-c, main-d and main-e would run nowhere until these jobs exist.
+  # JOB_NAME and BUILD_ID, so nothing below needs to differ by hand.
   cluster: build-kube-agents
   # 00:00 UTC (8 PM EDT / 7 PM EST; 5 PM / 4 PM Pacific): after the working
   # day's presubmit herd in the team's Eastern time zone, so the nightly's
@@ -2532,19 +2499,14 @@ periodics:
         # not recognise. This export is the whole difference between this job
         # and the presubmit's eval step.
         export EVAL_TIER="nightly"
-        # ─── spec.mode next ─────────────────────────────────────────────────
-        # As ci-kube-agents-eval-nightly above: hack/ci-deploy.sh flips the
-        # install to spec.mode next after the today-mode install has passed
-        # its own gates, and hack/ci-eval-pr.sh runs this shard through the
-        # gateway's inject door, less hack/eval/inject-lane-exclusions.txt.
-        # The deploy admits the flag on this job, which has no PULL_NUMBER,
-        # only by name (EVAL_MODE_NEXT_JOB_NAMES in hack/ci-deploy.sh, which
-        # the gke-labs/kube-agents change that teaches hack/ci-eval-pr.sh the
-        # main-e part also extends; until it merges this job reds at the
-        # deploy's refusal, as the header says). bench-gate reads the inject transport
-        # as the version key's next mode, so the lines this job appends file
-        # under next and never reach today's window.
-        export EVAL_MODE_NEXT="1"
+        # ─── The A2A stack and the inject door ──────────────────────────────
+        # As ci-kube-agents-eval-nightly above: hack/ci-deploy.sh installs the
+        # A2A stack and gates it, and hack/ci-eval-pr.sh runs this shard
+        # through the gateway's inject door, less
+        # hack/eval/inject-lane-exclusions.txt, with no flag since
+        # gke-labs/kube-agents#5755 (2026-11-18). bench-gate reads the inject
+        # transport as the version key's next mode, the one mode a run
+        # records now.
         # ─── The agent model: the `nightly` pair of the eval-model Secret ─────────
         # The nightlies' pair, which every nightly and weekly periodic reads;
         # the gate's record is built from these runs, so `gate.name` must name
@@ -2808,7 +2770,7 @@ periodics:
   # pool, provisioning, deploy, eval, teardown, identity and log bucket, so
   # its baseline records and its logs land where the main part's do (the
   # dashboard joins the builds into one night). Like the main part it
-  # grades spec.mode next (EVAL_MODE_NEXT=1 below).
+  # runs the A2A stack and grades through the inject door.
   cluster: build-kube-agents
   # 00:00 UTC (8 PM EDT / 7 PM EST; 5 PM / 4 PM Pacific): after the working
   # day's presubmit herd in the team's Eastern time zone, so the nightly's
@@ -2922,18 +2884,14 @@ periodics:
         # not recognise. This export is the whole difference between this job
         # and the presubmit's eval step.
         export EVAL_TIER="nightly"
-        # ─── spec.mode next ─────────────────────────────────────────────────
-        # hack/ci-deploy.sh flips the install to spec.mode next after the
-        # today-mode install has passed its own gates, and hack/ci-eval-pr.sh
-        # runs the matrix through the gateway's inject door, less
-        # hack/eval/inject-lane-exclusions.txt. The deploy admits the flag on
-        # this job, which has no PULL_NUMBER, only by name
-        # (EVAL_MODE_NEXT_JOB_NAMES in hack/ci-deploy.sh, which
-        # gke-labs/kube-agents#3783 extends: merge that first, or this job
-        # reds at the deploy's refusal). bench-gate reads the inject transport
-        # as the version key's next mode, so the lines this job appends file
-        # under next and never reach today's window.
-        export EVAL_MODE_NEXT="1"
+        # ─── The A2A stack and the inject door ──────────────────────────────
+        # hack/ci-deploy.sh installs the A2A stack and gates it, and
+        # hack/ci-eval-pr.sh runs the matrix through the gateway's inject
+        # door, less hack/eval/inject-lane-exclusions.txt. No flag chooses
+        # this path and no job-name allow-list admits it since
+        # gke-labs/kube-agents#5755 (2026-11-18). bench-gate reads the inject
+        # transport as the version key's next mode, the one mode a run
+        # records now.
         # ─── The agent model: the `nightly` pair of the eval-model Secret ─────────
         # The nightlies' pair, which every nightly and weekly periodic reads;
         # the gate's record is built from these runs, so `gate.name` must name
@@ -3215,7 +3173,6 @@ periodics:
         export EVAL_GITHUB_APP_ID="4675512"
         export REQUIRE_CACHE="true"
         export EVAL_TIER="nightly"
-        export EVAL_MODE_NEXT="1"
         MODEL_PROVIDER="$(tr -d '[:space:]' < /etc/eval-model/nightly.provider)"
         MODEL_DEFAULT_NAME="$(tr -d '[:space:]' < /etc/eval-model/nightly.name)"
         : "${MODEL_PROVIDER:?eval-model Secret: nightly.provider is missing or empty}"
@@ -3359,12 +3316,7 @@ periodics:
   # dashboard joins the builds into one night). The thirds' cases are
   # disjoint, so no case is recorded twice a night. The Boskos owner, log
   # path and build identity all derive from JOB_NAME and BUILD_ID, so nothing
-  # below needs to differ by hand. The deploy admits EVAL_MODE_NEXT=1 here by
-  # job name (EVAL_MODE_NEXT_JOB_NAMES in hack/ci-deploy.sh), so until the
-  # gke-labs/kube-agents change that adds this name merges this job reds at
-  # the deploy's refusal, a minute after its lease: the expected state for the
-  # night between the two merges, since this change lands first (the main
-  # jobs' header says why).
+  # below needs to differ by hand.
   cluster: build-kube-agents
   # 00:00 UTC (8 PM EDT / 7 PM EST; 5 PM / 4 PM Pacific): after the working
   # day's presubmit herd in the team's Eastern time zone, so the nightly's
@@ -3478,19 +3430,14 @@ periodics:
         # not recognise. This export is the whole difference between this job
         # and the presubmit's eval step.
         export EVAL_TIER="nightly"
-        # ─── spec.mode next ─────────────────────────────────────────────────
-        # hack/ci-deploy.sh flips the install to spec.mode next after the
-        # today-mode install has passed its own gates, and hack/ci-eval-pr.sh
-        # runs the matrix through the gateway's inject door, less
-        # hack/eval/inject-lane-exclusions.txt. The deploy admits the flag on
-        # this job, which has no PULL_NUMBER, only by name
-        # (EVAL_MODE_NEXT_JOB_NAMES in hack/ci-deploy.sh, which the
-        # gke-labs/kube-agents change that teaches hack/ci-eval-pr.sh the
-        # writers thirds also extends; until it merges this job reds at the
-        # deploy's refusal, as the header says). bench-gate reads the inject transport
-        # as the version key's next mode, so the lines this job appends file
-        # under next and never reach today's window.
-        export EVAL_MODE_NEXT="1"
+        # ─── The A2A stack and the inject door ──────────────────────────────
+        # hack/ci-deploy.sh installs the A2A stack and gates it, and
+        # hack/ci-eval-pr.sh runs the matrix through the gateway's inject
+        # door, less hack/eval/inject-lane-exclusions.txt. No flag chooses
+        # this path and no job-name allow-list admits it since
+        # gke-labs/kube-agents#5755 (2026-11-18). bench-gate reads the inject
+        # transport as the version key's next mode, the one mode a run
+        # records now.
         # ─── The agent model: the `nightly` pair of the eval-model Secret ─────────
         # The nightlies' pair, which every nightly and weekly periodic reads;
         # the gate's record is built from these runs, so `gate.name` must name
@@ -3732,12 +3679,7 @@ periodics:
   # dashboard joins the builds into one night). The thirds' cases are
   # disjoint, so no case is recorded twice a night. The Boskos owner, log
   # path and build identity all derive from JOB_NAME and BUILD_ID, so nothing
-  # below needs to differ by hand. The deploy admits EVAL_MODE_NEXT=1 here by
-  # job name (EVAL_MODE_NEXT_JOB_NAMES in hack/ci-deploy.sh), so until the
-  # gke-labs/kube-agents change that adds this name merges this job reds at
-  # the deploy's refusal, a minute after its lease: the expected state for the
-  # night between the two merges, since this change lands first (the main
-  # jobs' header says why).
+  # below needs to differ by hand.
   cluster: build-kube-agents
   # 00:00 UTC (8 PM EDT / 7 PM EST; 5 PM / 4 PM Pacific): after the working
   # day's presubmit herd in the team's Eastern time zone, so the nightly's
@@ -3851,19 +3793,14 @@ periodics:
         # not recognise. This export is the whole difference between this job
         # and the presubmit's eval step.
         export EVAL_TIER="nightly"
-        # ─── spec.mode next ─────────────────────────────────────────────────
-        # hack/ci-deploy.sh flips the install to spec.mode next after the
-        # today-mode install has passed its own gates, and hack/ci-eval-pr.sh
-        # runs the matrix through the gateway's inject door, less
-        # hack/eval/inject-lane-exclusions.txt. The deploy admits the flag on
-        # this job, which has no PULL_NUMBER, only by name
-        # (EVAL_MODE_NEXT_JOB_NAMES in hack/ci-deploy.sh, which the
-        # gke-labs/kube-agents change that teaches hack/ci-eval-pr.sh the
-        # writers thirds also extends; until it merges this job reds at the
-        # deploy's refusal, as the header says). bench-gate reads the inject transport
-        # as the version key's next mode, so the lines this job appends file
-        # under next and never reach today's window.
-        export EVAL_MODE_NEXT="1"
+        # ─── The A2A stack and the inject door ──────────────────────────────
+        # hack/ci-deploy.sh installs the A2A stack and gates it, and
+        # hack/ci-eval-pr.sh runs the matrix through the gateway's inject
+        # door, less hack/eval/inject-lane-exclusions.txt. No flag chooses
+        # this path and no job-name allow-list admits it since
+        # gke-labs/kube-agents#5755 (2026-11-18). bench-gate reads the inject
+        # transport as the version key's next mode, the one mode a run
+        # records now.
         # ─── The agent model: the `nightly` pair of the eval-model Secret ─────────
         # The nightlies' pair, which every nightly and weekly periodic reads;
         # the gate's record is built from these runs, so `gate.name` must name
@@ -4091,14 +4028,12 @@ periodics:
     - name: ledger-app-key-5
       secret:
         secretName: kube-agents-evals-ledger-app-key-5
-# The GitLab lane under spec.mode next (gke-labs/kube-agents#2007): the GitLab
-# nightly above with EVAL_MODE_NEXT=1, so the forge-grading cases
-# (hack/eval/gitlab-cases.txt) also run against a next install, through the
-# gateway's inject door, before the default flips. No other job runs a GitLab
-# case under next: the next lane's jobs all deploy against GitHub. The deploy
-# admits EVAL_MODE_NEXT=1 here by job name (EVAL_MODE_NEXT_JOB_NAMES in
-# hack/ci-deploy.sh); merge the gke-labs/kube-agents change that adds this
-# name first, or this job reds at the deploy's refusal until it lands.
+# The GitLab lane's nightly (gke-labs/kube-agents#2007): the forge-grading
+# cases (hack/eval/gitlab-cases.txt) run against an install with the A2A
+# stack, through the gateway's inject door, as every eval job's do with no
+# flag (gke-labs/kube-agents#5755, 2026-11-18). No other nightly runs a
+# GitLab case: the main nightlies all deploy against GitHub. The name keeps
+# its -next suffix from the time a flag chose this path.
 - name: ci-kube-agents-eval-nightly-gitlab-next
   cluster: build-kube-agents
   # 04:00 UTC: the GitLab lane's one nightly, before the 06:00 main
@@ -4120,7 +4055,7 @@ periodics:
     gcs_configuration:
       bucket: kube-agents-evals-nightly-logs
   annotations:
-    # No TestGrid tab, as the other next-lane jobs.
+    # No TestGrid tab, as the other forge jobs.
     testgrid-create-test-group: "false"
     description: Nightly kube-agents eval of the GitLab lane's cases (hack/eval/gitlab-cases.txt) under spec.mode next (gke-labs/kube-agents#2007).
   extra_refs:
@@ -4189,13 +4124,12 @@ periodics:
         # hack/eval/gitlab-cases.txt with the pool's GitLab token pair read from
         # Secret Manager after the lease.
         export EVAL_FORGE="gitlab"
-        # ─── The next-mode lane ───────────────────────────────────────────────
-        # EVAL_MODE_NEXT=1: the deploy flips the install to spec.mode next and
-        # gates the A2A stack, and the eval sends the matrix through the inject
-        # door. EVAL_TASK_PARALLELISM stays
-        # at the script's default of 4: every case here opens a merge request,
-        # so the units run one at a time whatever it is.
-        export EVAL_MODE_NEXT="1"
+        # ─── The A2A stack and the inject door ──────────────────────────────
+        # The deploy installs the A2A stack and gates it, and the eval sends
+        # the matrix through the inject door, with no flag
+        # (gke-labs/kube-agents#5755). EVAL_TASK_PARALLELISM stays at the
+        # script's default of 4: every case here opens a merge request, so
+        # the units run one at a time whatever it is.
         # ─── The agent model: the `nightly` pair of the eval-model Secret ─────────
         # The nightlies' pair, which every nightly and weekly periodic reads;
         # the gate's record is built from these runs, so `gate.name` must name
@@ -4422,7 +4356,7 @@ periodics:
     gcs_configuration:
       bucket: kube-agents-evals-nightly-logs
   annotations:
-    # No TestGrid tab, as the other next-lane jobs.
+    # No TestGrid tab, as the other forge jobs.
     testgrid-create-test-group: "false"
     description: Weekly kube-agents eval of the GHES lane's cases (hack/eval/ghes-cases.txt) under spec.mode next (gke-labs/kube-agents#2007).
   extra_refs:
@@ -4490,13 +4424,12 @@ periodics:
         # hack/ci-forge.sh, the GitHub forge at its host with its CA, and
         # hack/eval/ghes-cases.txt graded on api.github.com with the host set.
         export EVAL_FORGE="ghes"
-        # ─── The next-mode lane ───────────────────────────────────────────────
-        # The GHES lane runs in spec.mode next only: the deploy flips the
-        # install to next and gates the A2A stack, and the eval sends the
-        # matrix through the inject door. EVAL_TASK_PARALLELISM stays at the
-        # script's default of 4: every case here opens a pull request,
-        # so the units run one at a time whatever it is.
-        export EVAL_MODE_NEXT="1"
+        # ─── The A2A stack and the inject door ──────────────────────────────
+        # The deploy installs the A2A stack and gates it, and the eval sends
+        # the matrix through the inject door, with no flag
+        # (gke-labs/kube-agents#5755). EVAL_TASK_PARALLELISM stays at the
+        # script's default of 4: every case here opens a pull request, so
+        # the units run one at a time whatever it is.
         # ─── The agent model: the `nightly` pair of the eval-model Secret ─────────
         # The nightlies' pair, which every nightly and weekly periodic reads;
         # the gate's record is built from these runs, so `gate.name` must name
@@ -4724,7 +4657,7 @@ periodics:
     gcs_configuration:
       bucket: kube-agents-evals-nightly-logs
   annotations:
-    # No TestGrid tab, as the other next-lane jobs.
+    # No TestGrid tab, as the other forge jobs.
     testgrid-create-test-group: "false"
     description: Weekly kube-agents eval of the GitLab lane's cases (hack/eval/gitlab-cases.txt) against a per-run self-managed GitLab CE under spec.mode next (gke-labs/kube-agents#2007).
   extra_refs:
@@ -4793,13 +4726,12 @@ periodics:
         # at its host with its CA, and hack/eval/gitlab-cases.txt graded through
         # the tunnel.
         export EVAL_FORGE="gitlab-ce"
-        # ─── The next-mode lane ───────────────────────────────────────────────
-        # The GitLab CE lane runs in spec.mode next only: the deploy flips the
-        # install to next and gates the A2A stack, and the eval sends the
-        # matrix through the inject door. EVAL_TASK_PARALLELISM stays at the
-        # script's default of 4: every case here opens a merge request,
-        # so the units run one at a time whatever it is.
-        export EVAL_MODE_NEXT="1"
+        # ─── The A2A stack and the inject door ──────────────────────────────
+        # The deploy installs the A2A stack and gates it, and the eval sends
+        # the matrix through the inject door, with no flag
+        # (gke-labs/kube-agents#5755). EVAL_TASK_PARALLELISM stays at the
+        # script's default of 4: every case here opens a merge request, so
+        # the units run one at a time whatever it is.
         # ─── The agent model: the `nightly` pair of the eval-model Secret ─────────
         # The nightlies' pair, which every nightly and weekly periodic reads;
         # the gate's record is built from these runs, so `gate.name` must name
@@ -5133,16 +5065,17 @@ periodics:
         # nothing as main's history.
         export EVAL_REPLAY_LANE="true"
         # ─── spec.mode next ─────────────────────────────────────────────────
-        # hack/ci-deploy.sh flips the install to spec.mode next after the
-        # today-mode install has passed its own gates, and hack/ci-eval-pr.sh
-        # runs the matrix through the gateway's inject door, less
-        # hack/eval/inject-lane-exclusions.txt. The deploy admits the flag on
-        # this job, which has no PULL_NUMBER, only by name
-        # (EVAL_MODE_NEXT_JOB_NAMES in hack/ci-deploy.sh, which
-        # gke-labs/kube-agents#5089 extends with this job's name: merge that
-        # first, or this job reds at the deploy's refusal). bench-gate reads the inject transport
-        # as the version key's next mode, so the lines this job appends file
-        # under next and never reach today's window.
+        # The checkout below may be the recording night's commit, whose own
+        # hack/ci-deploy.sh and hack/ci-eval-pr.sh then run. A commit before
+        # gke-labs/kube-agents#5755 (a6ed47eaa, 2026-11-18) reads
+        # EVAL_MODE_NEXT=1 to install the A2A stack and run the matrix
+        # through the gateway's inject door, and admits the flag on this job,
+        # which has no PULL_NUMBER, by name (EVAL_MODE_NEXT_JOB_NAMES in its
+        # hack/ci-deploy.sh, gke-labs/kube-agents#5089); without it that
+        # commit installs today mode. A commit at or after #5755 takes the
+        # inject path with no flag and ignores this export. Keep it until no
+        # recording night this lane may replay predates #5755. bench-gate
+        # reads the inject transport as the version key's next mode.
         export EVAL_MODE_NEXT="1"
         # ─── The agent model: the `nightly` pair of the eval-model Secret ─────────
         # The nightlies' pair, not the gate's: the replay key carries the

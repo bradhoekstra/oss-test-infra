@@ -58,12 +58,15 @@ presubmits:
     # (a case fails only when all 3 repetitions fail) and the harness's infra
     # classification absorb single-rep flake and endpoint saturation.
     optional: false
-    # Grades spec.mode next, the mode a new kube-agents install gets
-    # (gke-labs/kube-agents#2007, "The cutover itself"), through the gateway's
-    # inject door: the EVAL_MODE_NEXT=1 export in the script below. Today
-    # mode is retired (gke-labs/kube-agents#5752 and its stack): the operator
-    # defaults spec.mode to next and migrates a stored today, so there is no
-    # rollback lane and no today job any more. The job keeps its name, so the
+    # Runs the A2A stack and grades through the gateway's inject door, as
+    # every kube-agents eval job does: since gke-labs/kube-agents#5755
+    # (a6ed47eaa, 2026-11-18) hack/ci-deploy.sh and hack/ci-eval-pr.sh take
+    # that path with no flag, and the EVAL_MODE_NEXT=1 export that once chose
+    # it is gone from this file. Today mode is retired
+    # (gke-labs/kube-agents#5752 and its stack): the operator defaults
+    # spec.mode to next and migrates a stored today, so there is no rollback
+    # lane and no today job any more (#2791 removed the last one here on
+    # 2026-11-13). The job keeps its name, so the
     # required context, Tide's history, step 0's verdict reuse and the
     # kube-agents dashboard and health readers that key on it are unchanged
     # (they key on the bucket too; see gcs_configuration below).
@@ -228,17 +231,16 @@ presubmits:
           # which gke-labs/kube-agents already publishes.
           export EVAL_GITHUB_APP_ID="4675512"
           export REQUIRE_CACHE="true"
-          # ─── spec.mode next ─────────────────────────────────────────────────
-          # hack/ci-deploy.sh reads EVAL_MODE_NEXT=1 after the today-mode install
-          # has passed its own gates: it builds the A2A and bridge images in the
-          # same Cloud Build step, flips the install to spec.mode: next through
-          # the chart, gates the NATS StatefulSet, the callout, the provisioning
-          # Job and the agent Deployment, and hack/ci-eval-pr.sh then runs the
+          # ─── The A2A stack and the inject door ──────────────────────────────
+          # hack/ci-deploy.sh builds the A2A and bridge images in the same
+          # Cloud Build step as the agent's, installs the chart with the stack
+          # on, and gates the NATS StatefulSet, the callout, the provisioning
+          # Job and the agent Deployment; hack/ci-eval-pr.sh then runs the
           # matrix over the inject transport, with the inject lane's exclusions
-          # and safeguards (hack/eval/inject-lane-*). A Tide batch has no
-          # PULL_NUMBER; the deploy admits the flag there by this job's name
-          # (EVAL_MODE_NEXT_JOB_NAMES in hack/ci-deploy.sh).
-          export EVAL_MODE_NEXT="1"
+          # and safeguards (hack/eval/inject-lane-*). Every run takes this path
+          # with no flag: the EVAL_MODE_NEXT=1 export that chose it, and the
+          # job-name allow-list a Tide batch needed, went with
+          # gke-labs/kube-agents#5755 (2026-11-18).
           # ─── Baseline evidence store: read-only ─────────────────────────────
           # The same variable ci-kube-agents-eval-nightly
           # (kube-agents-periodics.yaml) exports to APPEND; here it is READ.
@@ -662,10 +664,9 @@ presubmits:
           export EVAL_GITHUB_APP_ID="4675512"
           # The forge this lane drives; hack/ci-deploy.sh and hack/ci-eval-pr.sh read it.
           export EVAL_FORGE="gitlab"
-          # spec.mode: next, as every other eval lane but the today one: the
-          # install grades through the A2A gateway's inject door (see
+          # The install runs the A2A stack and grades through the gateway's
+          # inject door, as every eval lane does with no flag (see
           # pull-kube-agents-smoke-test above).
-          export EVAL_MODE_NEXT="1"
           export REQUIRE_CACHE="true"
           # ─── The agent model: the `gate` pair of the eval-model Secret ─────────
           # The same provider and model as the blocking job, which this lane
@@ -1079,10 +1080,9 @@ presubmits:
           export EVAL_GITHUB_APP_ID="4675512"
           # The forge this lane drives; hack/ci-deploy.sh and hack/ci-eval-pr.sh read it.
           export EVAL_FORGE="ghes"
-          # spec.mode: next, as every other eval lane but the today one: the
-          # install grades through the A2A gateway's inject door (see
+          # The install runs the A2A stack and grades through the gateway's
+          # inject door, as every eval lane does with no flag (see
           # pull-kube-agents-smoke-test above).
-          export EVAL_MODE_NEXT="1"
           export REQUIRE_CACHE="true"
           # ─── The agent model: the `gate` pair of the eval-model Secret ─────────
           # The same provider and model as the blocking job, which this lane
@@ -1500,10 +1500,9 @@ presubmits:
           export EVAL_GITHUB_APP_ID="4675512"
           # The forge this lane drives; hack/ci-deploy.sh and hack/ci-eval-pr.sh read it.
           export EVAL_FORGE="gitlab-ce"
-          # spec.mode: next, as every other eval lane but the today one: the
-          # install grades through the A2A gateway's inject door (see
+          # The install runs the A2A stack and grades through the gateway's
+          # inject door, as every eval lane does with no flag (see
           # pull-kube-agents-smoke-test above).
-          export EVAL_MODE_NEXT="1"
           export REQUIRE_CACHE="true"
           # ─── The agent model: the `gate` pair of the eval-model Secret ─────────
           # The same provider and model as the blocking job, which this lane
@@ -1724,7 +1723,7 @@ presubmits:
         secret:
           secretName: kube-agents-evals-ledger-app-key-5
   - name: pull-kube-agents-smoke-test-alt
-    # pull-kube-agents-smoke-test's matrix, lease, deploy, spec.mode next and
+    # pull-kube-agents-smoke-test's matrix, lease, deploy, inject door and
     # teardown, with the agent on the `alt` pair of the eval-model Secret: a
     # second model family on its own provider, instead of the gate's. It
     # exists to measure that family's prompt caching and cost on the real
@@ -1817,18 +1816,13 @@ presubmits:
           # which gke-labs/kube-agents already publishes.
           export EVAL_GITHUB_APP_ID="4675512"
           export REQUIRE_CACHE="true"
-          # ─── spec.mode next ─────────────────────────────────────────────────
-          # hack/ci-deploy.sh reads EVAL_MODE_NEXT=1 after the today-mode install
-          # has passed its own gates: it builds the A2A and bridge images in the
-          # same Cloud Build step, flips the install to spec.mode: next through
-          # the chart, gates the NATS StatefulSet, the callout, the provisioning
-          # Job and the agent Deployment, and hack/ci-eval-pr.sh then runs the
-          # matrix over the inject transport, with the inject lane's exclusions
-          # and safeguards (hack/eval/inject-lane-*). The deploy admits the
-          # flag on any run with a PULL_NUMBER, which every run of this job
-          # has: it is optional, so Tide never batches it, and it needs no
-          # entry in EVAL_MODE_NEXT_JOB_NAMES (hack/ci-deploy.sh).
-          export EVAL_MODE_NEXT="1"
+          # ─── The A2A stack and the inject door ──────────────────────────────
+          # As pull-kube-agents-smoke-test: hack/ci-deploy.sh builds the A2A
+          # and bridge images beside the agent's, installs the chart with the
+          # stack on and gates it, and hack/ci-eval-pr.sh runs the matrix over
+          # the inject transport, with the inject lane's exclusions and
+          # safeguards (hack/eval/inject-lane-*). No flag chooses this path
+          # since gke-labs/kube-agents#5755 (2026-11-18).
           # ─── Baseline evidence store: read-only ─────────────────────────────
           # The same variable ci-kube-agents-eval-nightly
           # (kube-agents-periodics.yaml) exports to APPEND; here it is READ.
@@ -2044,7 +2038,7 @@ presubmits:
         secret:
           secretName: kube-agents-evals-ledger-app-key-5
   - name: pull-kube-agents-smoke-test-flash
-    # pull-kube-agents-smoke-test's matrix, lease, deploy, spec.mode next and
+    # pull-kube-agents-smoke-test's matrix, lease, deploy, inject door and
     # teardown, with the agent on the `flash` pair of the eval-model Secret:
     # the Flash family, the one most installs we know of run, instead of the
     # gate's. It exists to measure that family on the real eval flow. Copied
@@ -2134,18 +2128,13 @@ presubmits:
           # which gke-labs/kube-agents already publishes.
           export EVAL_GITHUB_APP_ID="4675512"
           export REQUIRE_CACHE="true"
-          # ─── spec.mode next ─────────────────────────────────────────────────
-          # hack/ci-deploy.sh reads EVAL_MODE_NEXT=1 after the today-mode install
-          # has passed its own gates: it builds the A2A and bridge images in the
-          # same Cloud Build step, flips the install to spec.mode: next through
-          # the chart, gates the NATS StatefulSet, the callout, the provisioning
-          # Job and the agent Deployment, and hack/ci-eval-pr.sh then runs the
-          # matrix over the inject transport, with the inject lane's exclusions
-          # and safeguards (hack/eval/inject-lane-*). The deploy admits the
-          # flag on any run with a PULL_NUMBER, which every run of this job
-          # has: it is optional, so Tide never batches it, and it needs no
-          # entry in EVAL_MODE_NEXT_JOB_NAMES (hack/ci-deploy.sh).
-          export EVAL_MODE_NEXT="1"
+          # ─── The A2A stack and the inject door ──────────────────────────────
+          # As pull-kube-agents-smoke-test: hack/ci-deploy.sh builds the A2A
+          # and bridge images beside the agent's, installs the chart with the
+          # stack on and gates it, and hack/ci-eval-pr.sh runs the matrix over
+          # the inject transport, with the inject lane's exclusions and
+          # safeguards (hack/eval/inject-lane-*). No flag chooses this path
+          # since gke-labs/kube-agents#5755 (2026-11-18).
           # ─── Baseline evidence store: read-only ─────────────────────────────
           # The same variable ci-kube-agents-eval-nightly
           # (kube-agents-periodics.yaml) exports to APPEND; here it is READ.

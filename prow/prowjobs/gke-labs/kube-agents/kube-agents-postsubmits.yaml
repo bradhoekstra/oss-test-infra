@@ -259,19 +259,18 @@ postsubmits:
           fi
           export RC_TAG="${PULL_BASE_REF}"
           # Grade the candidate under spec.mode: next, the mode a new install
-          # gets since the default flipped (gke-labs/kube-agents#2007, "The
-          # cutover itself"). The candidate's hack/ci-deploy.sh installs its
-          # published images today, proves that install, then flips it to next
-          # and hands the operator the published A2A images, the inject door
-          # and the bridge's concurrency; its hack/ci-eval-pr.sh runs the
-          # matrix through the inject door. The deploy admits the flag on this
-          # job, which has no PULL_NUMBER, by name (EVAL_MODE_NEXT_JOB_NAMES in
-          # hack/ci-deploy.sh). A candidate cut before that name was on its
-          # allow-list refuses the flag at second zero, which the driver
-          # reports as NOT RUN: land this once the newest rc_*_validated
-          # candidate carries it, or the nightly nominations in between are
-          # withdrawn unmeasured. Like every RC run, a flagged one writes
-          # nothing to main's baseline store.
+          # gets (gke-labs/kube-agents#2007, "The cutover itself"). The
+          # CANDIDATE's hack/ci-deploy.sh and hack/ci-eval-pr.sh run (the
+          # detached checkout in hack/ci-eval-rc.sh), not main's. A candidate
+          # cut before gke-labs/kube-agents#5755 (a6ed47eaa, 2026-11-18) reads
+          # EVAL_MODE_NEXT=1 to hand the operator the published A2A images and
+          # the inject door and to run the matrix through it, and admits the
+          # flag on this job, which has no PULL_NUMBER, by name
+          # (EVAL_MODE_NEXT_JOB_NAMES in its hack/ci-deploy.sh); without it
+          # that candidate installs today mode. A candidate at or after #5755
+          # takes the inject path with no flag and ignores this export. Keep
+          # it until no candidate anyone may nominate predates #5755. Like
+          # every RC run, this one writes nothing to main's baseline store.
           export EVAL_MODE_NEXT="1"
           # ─── The agent model: the `gate` pair of the eval-model Secret ─────────
           # The gate's pair, so the candidate is graded on the model the gate
